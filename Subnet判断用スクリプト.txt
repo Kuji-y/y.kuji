@@ -1,0 +1,42 @@
+AzureCLI　スクリプト
+
+# サブネットの存在をチェック
+subnetExists=$(az network vnet subnet show --resource-group myResourceGroup --vnet-name myVnet --name mySubnet --query id -o tsv)
+
+if [ -z "$subnetExists" ]; then
+    echo "サブネットが存在しません。新しいサブネットを作成します。"
+    # Bicepテンプレートをデプロイして新しいサブネットを作成
+    az deployment group create --resource-group myResourceGroup --template-file createSubnet.bicep --parameters vnetName=myVnet subnetName=mySubnet addressPrefixes="10.0.0.0/24"
+else
+    echo "既存のサブネットを使用します。"
+    # 必要に応じて、既存のサブネットを使用するための操作を行う
+fi
+
+
+Bicep subnet テンプレート　createSubnet.bicep
+
+param vnetName string
+param subnetName string
+param addressPrefixes string
+
+resource vnet 'Microsoft.Network/virtualNetworks@2020-06-01' existing = {
+  name: vnetName
+}
+
+resource subnet 'Microsoft.Network/virtualNetworks/subnets@2020-06-01' = {
+  name: '${vnet.name}/${subnetName}'
+  properties: {
+    addressPrefix: addressPrefixes
+  }
+}
+
+# VNetの存在をチェックするAzure CLIコマンド
+vnetExists=$(az network vnet check-existence --name <VNet名> --resource-group <リソースグループ名> --output tsv)
+
+if [ "$vnetExists" = true ]; then
+  existingVnetName=<VNet名>
+else
+  existingVnetName=''
+fi
+
+# この後、この`existingVnetName`をBicepデプロイメントのパラメータとして使用
